@@ -1,0 +1,118 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<workbook original-version='18.1' source-build='2024.2.0' source-platform='win' version='18.1' xmlns:user='http://www.tableausoftware.com/xml/user'>
+  <preferences>
+    <preference name='ui.encoding.shelf.height' value='24' />
+    <preference name='ui.shelf.height' value='26' />
+  </preferences>
+  <datasources>
+    <datasource hasconnection='false' inline='true' name='Parameters' version='18.1'>
+      <aliases enabled='yes' />
+      <column caption='Select KPI Metric' datatype='string' name='[p_Selected_Metric]' param-domain-type='list' role='measure' type='nominal' value='&quot;MRR&quot;'>
+        <calculation class='tableau' formula='&quot;MRR&quot;' />
+        <members>
+          <member value='&quot;MRR&quot;' />
+          <member value='&quot;ARR&quot;' />
+          <member value='&quot;Active Customers&quot;' />
+          <member value='&quot;ARPU&quot;' />
+        </members>
+      </column>
+    </datasource>
+    <datasource caption='saas_subscriptions_mart' inline='true' name='federated.saas_mart' version='18.1'>
+      <connection class='federated'>
+        <named-connections>
+          <named-connection caption='saas_subscriptions_mart' name='textscan.saas_csv'>
+            <connection class='textscan' directory='.' filename='saas_subscriptions_mart.csv' password='' server='' />
+          </named-connection>
+        </named-connections>
+        <relation connection='textscan.saas_csv' name='saas_subscriptions_mart.csv' table='[saas_subscriptions_mart#csv]' type='table'>
+          <columns character-set='UTF-8' header='yes' locale='en_US' separator=','>
+            <column datatype='string' name='customer_id' ordinal='0' />
+            <column datatype='string' name='segment' ordinal='1' />
+            <column datatype='string' name='region' ordinal='2' />
+            <column datatype='string' name='acquisition_channel' ordinal='3' />
+            <column datatype='date' name='cohort_month' ordinal='4' />
+            <column datatype='date' name='billing_month' ordinal='5' />
+            <column datatype='integer' name='months_since_signup' ordinal='6' />
+            <column datatype='real' name='mrr_amount' ordinal='7' />
+            <column datatype='real' name='previous_mrr' ordinal='8' />
+            <column datatype='real' name='mrr_change' ordinal='9' />
+            <column datatype='string' name='mrr_movement_type' ordinal='10' />
+            <column datatype='integer' name='is_active' ordinal='11' />
+          </columns>
+        </relation>
+      </connection>
+      <column caption='Cohort Initial Customers' datatype='integer' name='[Calc_Cohort_Init_Cust]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='{ FIXED [cohort_month] : COUNTD(IF [months_since_signup] = 0 THEN [customer_id] END) }' />
+      </column>
+      <column caption='Cohort Initial MRR' datatype='real' name='[Calc_Cohort_Init_MRR]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='{ FIXED [cohort_month] : SUM(IF [months_since_signup] = 0 THEN [mrr_amount] END) }' />
+      </column>
+      <column caption='Logo Retention %' datatype='real' default-format='p0.0%' name='[Calc_Logo_Retention]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='COUNTD(IF [is_active] = 1 THEN [customer_id] END) / MAX([Calc_Cohort_Init_Cust])' />
+      </column>
+      <column caption='Net Dollar Retention (NDR %)' datatype='real' default-format='p0.0%' name='[Calc_NDR]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='SUM([mrr_amount]) / MAX([Calc_Cohort_Init_MRR])' />
+      </column>
+      <column caption='Dynamic KPI Measure' datatype='real' name='[Calc_Dynamic_KPI]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='CASE [Parameters].[p_Selected_Metric]&#13;&#10;WHEN &quot;MRR&quot; THEN SUM([mrr_amount])&#13;&#10;WHEN &quot;ARR&quot; THEN SUM([mrr_amount]) * 12&#13;&#10;WHEN &quot;Active Customers&quot; THEN COUNTD(IF [is_active] = 1 THEN [customer_id] END)&#13;&#10;WHEN &quot;ARPU&quot; THEN SUM([mrr_amount]) / NULLIF(COUNTD(IF [is_active] = 1 THEN [customer_id] END), 0)&#13;&#10;END' />
+      </column>
+    </datasource>
+  </datasources>
+  <worksheets>
+    <worksheet name='Cohort_NDR_Heatmap'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='saas_subscriptions_mart' name='federated.saas_mart' />
+          </datasources>
+          <rows>[federated.saas_mart].[yr:cohort_month:ok]</rows>
+          <cols>[federated.saas_mart].[none:months_since_signup:ok]</cols>
+        </view>
+        <style />
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Square' />
+            <encodings>
+              <color column='[federated.saas_mart].[usr:Calc_NDR:qk]' />
+              <text column='[federated.saas_mart].[usr:Calc_NDR:qk]' />
+            </encodings>
+          </pane>
+        </panes>
+      </table>
+    </worksheet>
+    <worksheet name='MRR_Movement_Waterfall'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='saas_subscriptions_mart' name='federated.saas_mart' />
+          </datasources>
+          <rows>[federated.saas_mart].[sum:mrr_change:qk]</rows>
+          <cols>[federated.saas_mart].[none:mrr_movement_type:nk]</cols>
+        </view>
+        <style />
+        <panes>
+          <pane>
+            <mark class='Gantt Bar' />
+            <encodings>
+              <color column='[federated.saas_mart].[none:mrr_movement_type:nk]' />
+            </encodings>
+          </pane>
+        </panes>
+      </table>
+    </worksheet>
+  </worksheets>
+  <dashboards>
+    <dashboard name='SaaS_Revenue_Executive_Dashboard'>
+      <size maxheight='900' maxwidth='1400' minheight='900' minwidth='1400' />
+      <zones>
+        <zone h='100000' id='1' type-v2='layout-basic' w='100000' x='0' y='0'>
+          <zone h='50000' id='2' name='MRR_Movement_Waterfall' w='100000' x='0' y='0' />
+          <zone h='50000' id='3' name='Cohort_NDR_Heatmap' w='100000' x='0' y='50000' />
+        </zone>
+      </zones>
+    </dashboard>
+  </dashboards>
+</workbook>
